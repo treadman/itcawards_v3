@@ -465,7 +465,10 @@
 						<br>
 					</cfloop>
 					<br>
-					Order Total: #NumberFormat(snap_order_total* ProgramInfo.credit_multiplier)#<br>
+					Order Total: #NumberFormat(snap_order_total* ProgramInfo.credit_multiplier)#<br><br>
+					<cfif points_used GT 0>
+						Less #ProgramInfo.credit_desc# used: #points_used#<br>
+					</cfif>
 					Charged to Cost Center: #cost_center_charge#<br>
 					<br>
 					ORDER NOTE:
@@ -670,6 +673,17 @@
 				<td align="right" colspan="5"><b>Order Total:</b> </td>
 				<td align="right" class="content"><b>#carttotal#</b></td>
 				</tr>
+				<cfif points_used GT 0>
+					<tr>
+						<td align="right" colspan="5"><b>Less #ProgramInfo.credit_desc# used:</b></td>
+						<td align="right" class="content" style="border-bottom: 1px solid"><b>-#points_used#</b></td>
+					</tr>
+					<tr>
+					<td align="right" colspan="5"><b>Cost Center Total:</b> </td>
+					<td align="right" class="content"><b>#carttotal-points_used#</b></td>
+					</tr>
+				</cfif>
+				<tr><td></td></tr>
 				<cfif shipping_charge GT 0>
 					<tr>
 						<td align="right" colspan="5"><b>Ship via #shipping_desc#:</b></td>

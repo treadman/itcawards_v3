@@ -13,7 +13,7 @@
 		SELECT IFNULL(SUM((points_used*credit_multiplier)/points_multiplier),0) AS neg_pt, IFNULL(SUM(credit_card_charge),0) AS neg_cc
 		FROM #application.database#.order_info
 		WHERE created_user_ID = <cfqueryparam cfsqltype="cf_sql_integer" value="#ProgramUserInfo_userID#">
-		AND is_valid = 1
+		AND ( is_valid = 1 OR approval in (1,2) )
 	</cfquery>
 	<!--- find defered points --->
 	<cfquery name="DefPoints" datasource="#application.DS#">

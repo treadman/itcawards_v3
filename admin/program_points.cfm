@@ -142,28 +142,11 @@
 	</cfquery>
 	<cfset fname = HTMLEditFormat(SelectUserInfo.fname)>
 	<cfset lname = HTMLEditFormat(SelectUserInfo.lname)>
-	
-	<!--- CALCULATE USER'S POINTS --->
-		<!--- look in the points database for the starting point amount --->
-		<cfquery name="PosPoints" datasource="#application.DS#">
-			SELECT IFNULL(SUM(points),0) AS pos_pt
-			FROM #application.database#.awards_points
-			WHERE user_ID = <cfqueryparam cfsqltype="cf_sql_integer" value="#puser_ID#" maxlength="10"> 
-		</cfquery>
-		
-		<!--- look in the order database for orders/points_used --->
-		<cfquery name="NegPoints" datasource="#application.DS#">
-			SELECT IFNULL(SUM((points_used * credit_multiplier)/points_multiplier),0) AS neg_pt
-			FROM #application.database#.order_info
-			WHERE created_user_ID = <cfqueryparam cfsqltype="cf_sql_integer" value="#puser_ID#" maxlength="10"> 
-		</cfquery>
 
-		<cfset user_total = PosPoints.pos_pt - NegPoints.neg_pt>
 			
 <cfelse>
 	<cfset fname = "">
 	<cfset lname = "">
-	<cfset user_total = "">
 </cfif>
 
 <cfoutput>
@@ -307,7 +290,7 @@
 	<cfquery name="GetPointHistory" datasource="#application.DS#">
 		SELECT p.created_datetime, p.created_user_ID, p.points AS thispoints, IFNULL(p.notes,'(no note)') AS thisnote,
 				000 AS order_number, IF(p.is_defered = 1, 'true', 'false') AS thisdef, p.ID AS point_ID , p.division_ID,
-				d.program_name AS division_name, s.subdivision_name
+				d.program_name AS division_name, s.subdivision_name, 0 AS is_valid
 		FROM #application.database#.awards_points p
 		LEFT JOIN #application.database#.program d ON d.ID = p.division_ID
 		LEFT JOIN #application.database#.subdivisions s ON s.ID = p.subdivision_ID
@@ -317,10 +300,10 @@
 		
 		SELECT created_datetime, created_user_ID, ((points_used * credit_multiplier)/points_multiplier) AS thispoints, '' AS thisnote,
 				order_number AS order_number, 'false' AS thisdef, 444 AS point_ID, 0 AS division_ID,
-				'' AS division_name, '' AS subdivision_name
+				'' AS division_name, '' AS subdivision_name, is_valid
 		FROM #application.database#.order_info
 		WHERE created_user_ID = <cfqueryparam cfsqltype="cf_sql_integer" value="#puser_ID#" maxlength="10"> 
-			AND is_valid = 1
+			AND ( is_valid = 1 OR (points_used > 0 AND approval IN (1,2)) )
 		ORDER BY created_datetime
 	</cfquery>
 	<cfoutput>
@@ -354,7 +337,7 @@
 	<cfif FLGen_HasAdminAccess(1000000047)>
 	<td class="headertext" align="center"><cfif point_ID NEQ '444'><a href="#CurrentPage#?delete=#point_ID#&puser_ID=#puser_ID#&xL=#xL#&xT=#xT#&OnPage=#OnPage#&xOnPage=#xOnPage#&xxS=#xxS#&xxL=#xxL#&xxT=#xxT#" onclick="return confirm('Are you sure you want to delete this line item?  There is NO UNDO.')">X</a><cfelse>&nbsp;</cfif></td>
 	</cfif>
-	<td><cfif order_number NEQ 000>Order Number: #order_number#<cfelse>#thisnote# <span class="sub">Entered by #FLGen_GetAdminName(created_user_ID)#</span></cfif></td>
+	<td><cfif order_number NEQ 000><cfif NOT is_valid><em>Pending </em></cfif>Order Number: #order_number#<cfelse>#thisnote# <span class="sub">Entered by #FLGen_GetAdminName(created_user_ID)#</span></cfif></td>
 	</tr>
 	</cfloop>
 	<cfset ProgramUserInfo(puser_ID)>

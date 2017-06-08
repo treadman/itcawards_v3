@@ -16,7 +16,7 @@
 <cfset cost_center_box_charge = 4>
 
 <cfparam name="checkout_type" default="">
-<cfif checkout_type NEQ "" AND checkout_type NEQ "points" AND checkout_type NEQ "costcenter">
+<cfif checkout_type NEQ "" AND checkout_type NEQ "points" AND checkout_type NEQ "costcenter" AND checkout_type NEQ "combination">
 	<cfset checkout_type = "">
 </cfif>
 
@@ -58,13 +58,13 @@
 	<cfset bill_zip = HTMLEditFormat(GetUserInfo.bill_zip)>
 	<cfset uses_cost_center = GetUserInfo.uses_cost_center>
 	<cfset user_total = 0>
-	<cfif uses_cost_center neq 2 or checkout_type eq "points">
+	<cfif uses_cost_center eq 0 or ListFind("points,combination",checkout_type)>
 		<cfset user_total = ListGetAt(ListGetAt(cookie.itc_user,2,"-"),1,"_")>
 		<!--- Get a fresh total from the DB.  If the two are different, kick them out. --->
 		<cfset ProgramUserInfo(user_ID, false)>
 		<cfif user_total GT 0 AND user_totalpoints NEQ user_total>
 			<cflocation addtoken="no" url="logout.cfm">
-		</cfif> 
+		</cfif>
 	</cfif>
 <cfelse>
 	<cflocation url="cart.cfm?div=#request.division_ID#" addtoken="false" >
@@ -76,18 +76,22 @@
 <cfparam name="state" default="">
 <cfparam name="zipcode" default="">
 
-<!--- <cfparam name="awards_points_charge" default="0"> --->
+<cfparam name="awards_points_charge" default="0">
 <cfparam name="credit_card_charge" default="0">
 <cfparam name="cost_center_charge" default="0">
 <cfparam name="cost_center_number" default="">
 <cfparam name="shipping_location_ID" default="0">
 
 <cfif NOT isNumeric(credit_card_charge)>
-	<Cfset credit_card_charge = 0>
+	<cfset credit_card_charge = 0>
 </cfif>
 <cfif NOT isNumeric(cost_center_charge)>
-	<Cfset cost_center_charge = 0>
+	<cfset cost_center_charge = 0>
 </cfif>
+<cfif NOT isNumeric(awards_points_charge)>
+	<cfset awards_points_charge = 0>
+</cfif>
+<cfset awards_points_charge = round(awards_points_charge)>
 
 <cfset SoldOutString = "">
 
@@ -178,12 +182,13 @@
 
 <cfset Shipping_Price_Array = ArrayNew(2)>
 <cfparam name="ship_type" default="1">
-
 <cfif cc_shipping AND NOT charge_shipping>
 	<!--- The way they want it is to charge shipping only when they are not using points at all --->
 	<cfif IsDefined('cookie.itc_user') AND cookie.itc_user IS NOT "">
 		<cfif FLGen_CreateHash(ListGetAt(cookie.itc_user,1,"_")) EQ ListGetAt(cookie.itc_user,2,"_")>
-			<cfif ListGetAt(ListGetAt(cookie.itc_user,2,"-"),1,"_") lte 0 OR (uses_cost_center EQ 2 AND checkout_type EQ "costcenter")>
+			<cfif ListGetAt(ListGetAt(cookie.itc_user,2,"-"),1,"_") lte 0 OR
+					(uses_cost_center EQ 2 AND checkout_type EQ "costcenter") OR
+					(uses_cost_center EQ 3 AND ListFind("combination,costcenter",checkout_type))>
 				<cfset charge_shipping = 1>
 			</cfif>
 		</cfif>
@@ -409,7 +414,6 @@
 		</cfloop>
 		</cflock>
 	</cfif>
-		
 	<cfif SoldOutString EQ "">
 		<!--- figure total cost --->
 		<cfset snap_order_total = "0">
@@ -429,28 +433,34 @@
 		<cfelse>
 			<!--- if it's not a one item store, process the order normally --->
 			
-			<!--- figure total point used --->
-			<cfif snap_order_total GTE user_total>
-				<cfset points_used = user_total>
+			<!--- figure total point used and total other charges (credit card or cost center) --->
+			<cfif checkout_type EQ "combination">
+				<cfset points_used = awards_points_charge>
+				<cfset total_charge = snap_order_total - awards_points_charge>
 			<cfelse>
-				<cfset points_used = snap_order_total>
+				<cfif snap_order_total GTE user_total>
+					<cfset points_used = user_total>
+				<cfelse>
+					<cfset points_used = snap_order_total>
+				</cfif>
+				<cfif snap_order_total GTE user_total>
+					<cfset total_charge = snap_order_total - user_total>
+				<cfelse>
+					<cfset total_charge = 0>
+				</cfif>
 			</cfif>
-			
-			<!--- figure total charges --->
-			<cfif snap_order_total GTE user_total>
-				<cfset total_charge = snap_order_total - user_total>
-			<cfelse>
-				<cfset total_charge = 0>
-			</cfif>
+
 			<cfif shipping_charge gt 0>
 				<cfset total_charge = total_charge + shipping_charge>
 				<cfif signature_charge gt 0>
 					<cfset total_charge = total_charge + signature_charge>
 				</cfif>
 			</cfif>
-			<cfif checkout_type EQ "costcenter" AND cost_center_box_charge GT 0>
+
+			<cfif ListFind("costcenter,combination",checkout_type) AND cost_center_box_charge GT 0>
 				<cfset total_charge = total_charge + cost_center_box_charge>
 			</cfif>
+
 			<cfif CostCenterErrorString NEQ "">
 				<cfset transactionsuccessful = false>
 			<cfelse>
@@ -462,6 +472,7 @@
 					<cfset cost_center_charge = total_charge>
 				</cfif>
 			</cfif>
+
 			<cfif transactionsuccessful>
 				<!--- process credit card --->
 				<cfif total_charge EQ 0>
@@ -658,8 +669,6 @@
 						</cfif>
 					</cfloop>
 
-
-
 					<!--- get newest order number for this program --->
 					<cfquery name="GetLastProgramOrderNumber" datasource="#application.DS#">
 						SELECT Max(order_number) As MaxID
@@ -671,6 +680,7 @@
 					<cfif ship_overseas EQ "1">
 						<cfset order_note = forward_button & "  " & order_note>
 					</cfif>
+
 					<!--- save order information --->
 					<cfquery name="SaveOrderInfo" datasource="#application.DS#">
 						UPDATE #application.database#.order_info
@@ -738,6 +748,7 @@
 					</cfquery>
 				</cftransaction>
 			</cflock>
+
 			<!--- update all inventory items for this order to is_valid = 1 --->
 			<cfif cost_center_number eq "" AND NOT is_pending_verification>
 				<cfquery name="UpdateInvItems" datasource="#application.DS#">
@@ -791,6 +802,7 @@
 						</cfif>
 				WHERE ID = <cfqueryparam cfsqltype="cf_sql_integer" value="#user_ID#" maxlength="10">
 			</cfquery>
+
 			<!--- find all inventory items for this order for emails --->
 			<cfquery name="FindOrderItems" datasource="#application.DS#">
 				SELECT quantity, snap_meta_name, snap_sku, snap_productvalue, snap_options
@@ -802,6 +814,7 @@
 				FROM #application.database#.program_meta
 			</cfquery>
 			<cfset meta_conf_email_text = HTMLEditFormat(SelectInfo.meta_conf_email_text)>
+
 			<!--- send email confirmation, if requested --->
 			<cfset this_subject = Replace(Translate(language_ID,'confirmation_email_subject'),'[company_name]',company_name)>
 			<cfif cost_center_charge GT 0>
@@ -846,15 +859,6 @@
 						#snap_ship_address2##CHR(10)#<br>
 					</cfif>
 					#snap_ship_city#, #snap_ship_state# #snap_ship_zip#<br><br>
-					<cfif shipping_desc NEQ "">
-						#Translate(language_ID,'ship_via')# #shipping_desc#: #shipping_charge#<br><br>
-						<cfif signature_charge GT 0>
-							Signature Required Charge: #signature_charge#<br><br>
-						</cfif>
-					</cfif>
-					<cfif cost_center_box_charge gt 0 AND cost_center_ID GT 0>
-						Box Charge: #cost_center_box_charge#<br><br>
-					</cfif>
 				</cfif>
 				#Translate(language_ID,'item_in_order')#:<br>
 				<cfloop query="FindOrderItems">
@@ -867,9 +871,19 @@
 				<br>
 				<cfif is_one_item EQ 0 AND NOT hide_points>
 					#Translate(language_ID,'order_total')#: #NumberFormat(snap_order_total* credit_multiplier)#<br>
-					<cfif cost_center_charge EQ 0>
-						#credit_desc# Used: #NumberFormat(points_used * credit_multiplier)#<br>
+					<cfif points_used GT 0>
+						#credit_desc# Used: #points_used*credit_multiplier#<br>
 						#credit_desc# Left: #NumberFormat((user_total* points_multiplier) - (points_used*credit_multiplier))#<br>
+						Cost Center Total: #(snap_order_total-points_used)*credit_multiplier#<br>
+					</cfif>
+					<cfif shipping_desc NEQ "">
+						#Translate(language_ID,'ship_via')# #shipping_desc#: #shipping_charge#<br>
+						<cfif signature_charge GT 0>
+							Signature Required Charge: #signature_charge#<br>
+						</cfif>
+					</cfif>
+					<cfif cost_center_box_charge gt 0 AND cost_center_ID GT 0>
+						Box Charge: #cost_center_box_charge#<br>
 					</cfif>
 					<cfif cost_center_charge GT 0>
 						Charged to Cost Center: #cost_center_charge#<br>
@@ -882,6 +896,7 @@
 				#Translate(language_ID,'order_note')#:
 				<cfif order_note EQ "">(none)<cfelse>#order_note#</cfif>
 			</cfmail>
+
 			<!--- Send email to cost center --->
 			<cfif cost_center_number neq "">
 				<cfloop query="GetLevel1">
@@ -913,15 +928,6 @@
 								#snap_ship_address2#<br>
 							</cfif>
 							#snap_ship_city#, #snap_ship_state# #snap_ship_zip#<br><br>
-							<cfif shipping_desc NEQ "">
-								Ship via #shipping_desc#: #shipping_charge#<br><br>
-								<cfif signature_charge GT 0>
-									Signature Required Charge: #signature_charge#<br><br>
-								</cfif>
-							</cfif>
-							<cfif cost_center_box_charge gt 0 AND cost_center_ID GT 0>
-								Box Charge: #cost_center_box_charge#<br><br>
-							</cfif>
 						</cfif>
 						ITEM(S) IN ORDER:
 						<cfloop query="FindOrderItems">
@@ -934,6 +940,19 @@
 						<br>
 						<cfif is_one_item EQ 0 AND NOT hide_points>
 							Order Total: #NumberFormat(snap_order_total* credit_multiplier)#<br>
+							<cfif points_used GT 0>
+								#credit_desc# Used: #points_used*credit_multiplier#<br>
+								Cost Center Total: #(snap_order_total-points_used)*credit_multiplier#<br>
+							</cfif>
+							<cfif shipping_desc NEQ "">
+								Ship via #shipping_desc#: #shipping_charge#<br>
+								<cfif signature_charge GT 0>
+									Signature Required Charge: #signature_charge#<br>
+								</cfif>
+							</cfif>
+							<cfif cost_center_box_charge gt 0 AND cost_center_ID GT 0>
+								Box Charge: #cost_center_box_charge#<br>
+							</cfif>
 							<cfif cost_center_charge GT 0>
 								Charged to Cost Center: #cost_center_charge#<br>
 							</cfif>
@@ -947,6 +966,7 @@
 					</cfmail>
 					</cfif>
 				</cfloop>
+
 				<!--- send notification email(s) ---->
 				<cfif cost_center_notification neq "">
 					<cfloop list="#cost_center_notification#" index="thisemail">
@@ -971,15 +991,6 @@
 								#snap_ship_address1#<br>
 								<cfif Trim(snap_ship_address2) NEQ "">#snap_ship_address2#<br></cfif>
 								#snap_ship_city#, #snap_ship_state# #snap_ship_zip#<br><br>
-								<cfif shipping_desc NEQ "">
-									Ship via #shipping_desc#: #shipping_charge#<br><br>
-									<cfif signature_charge GT 0>
-										Signature Required Charge: #signature_charge#<br><br>
-									</cfif>
-								</cfif>
-							</cfif>
-							<cfif cost_center_box_charge gt 0 AND cost_center_ID GT 0>
-								Box Charge: #cost_center_box_charge#<br><br>
 							</cfif>
 							ITEM(S) IN ORDER:
 							<cfloop query="FindOrderItems">
@@ -990,8 +1001,20 @@
 								This is a #is_one_item#-ITEM award program<br>
 							<cfelseif NOT hide_points>
 								Order Total: #snap_order_total*credit_multiplier#<br>
-								#credit_desc# Used: #points_used*credit_multiplier#<br>
-								#credit_desc# Left: #(user_total*points_multiplier) - (points_used*credit_multiplier)#<br>
+								<cfif points_used GT 0>
+									#credit_desc# Used: #points_used*credit_multiplier#<br>
+									Cost Center Total: #(snap_order_total-points_used)*credit_multiplier#<br>
+									<!--- #credit_desc# Left: #(user_total*points_multiplier) - (points_used*credit_multiplier)#<br> --->
+								</cfif>
+							</cfif>
+							<cfif shipping_desc NEQ "">
+								Ship via #shipping_desc#: #shipping_charge#<br>
+								<cfif signature_charge GT 0>
+									Signature Required Charge: #signature_charge#<br>
+								</cfif>
+							</cfif>
+							<cfif cost_center_box_charge gt 0 AND cost_center_ID GT 0>
+								Box Charge: #cost_center_box_charge#<br><br>
 							</cfif>
 							<cfif cost_center_charge GT 0>
 								Charged to Cost Center: #cost_center_charge#<br>
@@ -1006,6 +1029,7 @@
 					</cfloop>
 				</cfif>
 			</cfif>
+
 			<!--- Send email to ITC --->
 			<cfif cost_center_number eq "">
 				<cfif is_pending_verification>
@@ -1051,12 +1075,6 @@
 									FEDEX CORRECTED:<br>
 									#shipper_corrected_address#<br><br>
 								</cfif>
-								<cfif shipping_desc NEQ "">
-									Ship via #shipping_desc#: #shipping_charge#<br><br>
-									<cfif signature_charge GT 0>
-										Signature Required Charge: #signature_charge#<br><br>
-									</cfif>
-								</cfif>
 							</cfif>
 							ITEM(S) IN ORDER:
 							<cfloop query="FindOrderItems">
@@ -1069,6 +1087,12 @@
 								Order Total: #snap_order_total*credit_multiplier#<br>
 								#credit_desc# Used: #points_used*credit_multiplier#<br>
 								#credit_desc# Left: #(user_total*points_multiplier) - (points_used*credit_multiplier)#<br>
+							</cfif>
+							<cfif shipping_desc NEQ "">
+								Ship via #shipping_desc#: #shipping_charge#<br><br>
+								<cfif signature_charge GT 0>
+									Signature Required Charge: #signature_charge#<br><br>
+								</cfif>
 							</cfif>
 							<cfif cost_center_charge GT 0>
 								Charged to Cost Center: #cost_center_charge#<br>
@@ -1119,7 +1143,7 @@
 		<br />
 		<cfif uses_shipping_locations eq 0 or charge_shipping>
 			<cfif uses_shipping_locations gt 0>
-				<cfif checkout_type EQ "costcenter">
+				<cfif ListFind("costcenter,combination",checkout_type)>
 					<cfset shipping_location_message2 = replace(shipping_location_message2,'<p>&lt;nocostcenter&gt;</p>','<!-- ','ALL')>
 					<cfset shipping_location_message2 = replace(shipping_location_message2,'<p>&lt;/nocostcenter&gt;</p>',' -->','ALL')>
 				<cfelse>
@@ -1246,6 +1270,7 @@
 			</p>
 		</cfif>
 		<input type="hidden" name="checkout_type" value="#checkout_type#">
+		<input type="hidden" name="awards_points_charge" value="#awards_points_charge#">
 		<p align="center"><input type="submit" name="submit" value="#Translate(language_ID,'continue_text')#"></p>
 	</form>
 	</cfoutput>
@@ -1277,7 +1302,8 @@
 		FROM #application.database#.inventory
 		WHERE order_ID = <cfqueryparam cfsqltype="cf_sql_integer" value="#order_ID#" maxlength="10">
 	</cfquery>
-	<cfif uses_cost_center eq 2 AND checkout_type NEQ "costcenter">
+	<cfif (uses_cost_center eq 2 AND checkout_type NEQ "costcenter") OR 
+		  (uses_cost_center eq 3 AND NOT ListFind("combination,costcenter",checkout_type))>
 		<cfset uses_cost_center = 0>
 	</cfif>
 	<cfif uses_cost_center gt 0>
@@ -1335,43 +1361,6 @@
 		document.getElementById('inactive_place_order').style.display = 'block';
 
 		var error = false;
-		/*
-		if (document.getElementById('credit_card_charge') && document.getElementById('cost_center_charge')) {
-			var alert_msg = "";
-			var this_total = 0;
-			var this_credit_charge = document.getElementById('credit_card_charge').value;
-			if(isNaN(this_credit_charge)) {
-				alert_msg += "'" + document.getElementById('credit_card_charge').value + "' is not a numeric credit card amount.\n\n";
-				this_credit_charge = 0;
-			}
-			this_credit_charge *= 100;
-			//alert(this_credit_charge);
-			var this_cost_charge = document.getElementById('cost_center_charge').value;
-			if(isNaN(this_cost_charge)) {
-				alert_msg += "'" + document.getElementById('cost_center_charge').value + "' is not a numeric cost center amount.\n\n";
-				this_cost_charge = 0;
-			}
-			this_cost_charge *= 100;
-			//alert(this_cost_charge);
-			var this_total = parseInt(this_credit_charge) + parseInt(this_cost_charge);
-			this_total /= 100;
-			//alert(this_total);
-			var total_due = document.getElementById("total_due").innerHTML;
-			//alert(total_due);
-			if (this_total != total_due) {
-				error = true;
-				alert_msg += "$"+this_total+"<cfoutput>#Translate(language_ID,'cost_center_plus_credit_card')#</cfoutput> "+total_due;
-				document.getElementById("label_credit_card_charge").className = "alert";
-				document.getElementById("label_cost_center_charge").className = "alert";
-			} else {
-				document.getElementById("label_credit_card_charge").className = "bold";
-				document.getElementById("label_cost_center_charge").className = "bold";
-			}
-			if(error) {
-				alert(alert_msg);
-			}
-		}
-		*/
 		if (!error) {
 			var this_alert = true;
 			for (i = 0; i < labelArray.length; i++) {
@@ -1439,7 +1428,6 @@
 	<cfelse>
 	<cfoutput>
 	<cfif NOT transactionsuccessful>
-		<!---<div align="right" class="message">--->
 		<div class="alert">
 			<cfif CostCenterErrorString EQ "">
 				Credit Card Authorization Failed.<br><br>Please enter your credit card information to try again.<br><br>
@@ -1488,31 +1476,48 @@
 			<cflocation url="cart.cfm?div=#request.division_ID#" addtoken="no">
 		</cfif>
 			<cfif NOT hide_points>
-			<tr>
-			<td align="right" colspan="3"><b>Order Total:</b> </td>
-			<cfset num_format = Application.NumFormat>
-			<cfif checkout_type EQ "costcenter">
-				<cfset num_format = "___.__">
-			</cfif>
-			<td align="right"><b><cfif checkout_type EQ "costcenter">$ </cfif>#NumberFormat(carttotal * credit_multiplier,num_format)#</b></td>
-			</tr>
-			<cfif checkout_type NEQ "costcenter">
+				<cfset num_format = Application.NumFormat>
+				<cfif ListFind("costcenter,combination",checkout_type)>
+					<cfset num_format = "___.__">
+				</cfif>
 				<tr>
-				<td align="right" colspan="4">&nbsp;</td>
+				<td align="right" colspan="3"><b>Order Total:</b></td>
+				<td align="right">
+					<b><cfif ListFind("costcenter,combination",checkout_type)>$ </cfif>#NumberFormat(carttotal * credit_multiplier,num_format)#</b>
+				</td>
 				</tr>
-				<tr>
-				<td align="right" colspan="3"><b>Total #credit_desc#: </b></td>
-				<td align="right"><b>#NumberFormat(user_total * points_multiplier,Application.NumFormat)#</b></td>
-				</tr>
-				<tr>
-				<td align="right" colspan="3"><b>Less This Order:</b> </td>
-				<td align="right"><b>#NumberFormat(carttotal * credit_multiplier,Application.NumFormat)#</b></td>
-				</tr>
-				<tr>
-				<td align="right" colspan="3"><b>Remaining #credit_desc#:</b> </td>
-				<td align="right"><b>#NumberFormat(Max( (user_total * points_multiplier) - (carttotal * credit_multiplier),0),Application.NumFormat)#</b></td>
-				</tr>
-			</cfif>
+				<cfif awards_points_charge GT 0>
+					<tr>
+						<td align="right" colspan="3"><b>Less #credit_desc# used: </b></td>
+						<td align="right"><b>#NumberFormat(awards_points_charge * points_multiplier,num_format)#</b></td>
+					</tr>
+					<tr>
+						<td align="right" colspan="3"><b>Cost Center Total:</b></td>
+						<td align="right">
+							<b>
+								<cfif ListFind("costcenter,combination",checkout_type)>$ </cfif>
+								#NumberFormat((carttotal-awards_points_charge) * credit_multiplier,num_format)#
+							</b>
+					</td>
+					</tr>
+				</cfif>
+				<cfif NOT ListFind("costcenter,combination",checkout_type)>
+					<tr>
+					<td align="right" colspan="4">&nbsp;</td>
+					</tr>
+					<tr>
+					<td align="right" colspan="3"><b>Total #credit_desc#: </b></td>
+					<td align="right"><b>#NumberFormat(user_total * points_multiplier,Application.NumFormat)#</b></td>
+					</tr>
+					<tr>
+					<td align="right" colspan="3"><b>Less This Order:</b> </td>
+					<td align="right"><b>#NumberFormat(carttotal * credit_multiplier,Application.NumFormat)#</b></td>
+					</tr>
+					<tr>
+					<td align="right" colspan="3"><b>Remaining #credit_desc#:</b> </td>
+					<td align="right"><b>#NumberFormat(Max( (user_total * points_multiplier) - (carttotal * credit_multiplier),0),Application.NumFormat)#</b></td>
+					</tr>
+				</cfif>
 			</cfif>
 			<cfif shipping_charge GT 0>
 				<cfif signature_charge GT 0>
@@ -1526,7 +1531,7 @@
 				<td align="right"><b>$ <span id="ship_charge">#NumberFormat(shipping_charge,"___.__")#</span></b></td>
 				</tr>
 			</cfif>
-			<cfif cost_center_box_charge gt 0 AND checkout_type EQ "costcenter">
+			<cfif cost_center_box_charge gt 0 AND ListFind("costcenter,combination",checkout_type)>
 				<tr>
 				<td align="right" colspan="3"><b>Box Charge:</b> </td>
 				<td align="right"><b>$ <span id="box_charge">#NumberFormat(cost_center_box_charge,"___.__")#</span></b></td>
@@ -1534,11 +1539,17 @@
 			</cfif>
 			<cfif (user_total - carttotal LT 0 AND accepts_cc GTE 1) OR shipping_charge GT 0>
 				<cfset balance_due = shipping_charge + signature_charge>
-				<cfif cost_center_box_charge gt 0 AND checkout_type EQ "costcenter">
+				<cfif cost_center_box_charge gt 0 AND ListFind("costcenter,combination",checkout_type)>
 					<cfset balance_due = balance_due + cost_center_box_charge>
 				</cfif>
-				<cfif user_total - carttotal LT 0 AND accepts_cc GTE 1>
+				<cfif checkout_type EQ "points" AND user_total - carttotal LT 0 AND accepts_cc GTE 1>
 					<cfset balance_due = balance_due + (carttotal - user_total)>
+				</cfif>
+				<cfif checkout_type EQ "combination">
+					<cfset balance_due = balance_due + carttotal - awards_points_charge>
+				</cfif>
+				<cfif checkout_type EQ "costcenter">
+					<cfset balance_due = balance_due + carttotal>
 				</cfif>
 				<cfset this_num_format = Application.NumFormat>
 				<cfif shipping_charge GT 0>
@@ -1622,7 +1633,17 @@
 			</cfif>
 		</cfif>
 	</cfif>
-			
+	<cfif checkout_type EQ "combination">
+		<cfif awards_points_charge GT carttotal>
+			<cfset alert_msg = alert_msg & "<li>You assigned #awards_points_charge*points_multiplier# #credit_desc#.  Order total is only #carttotal*points_multiplier#.</li>">
+		<cfelseif awards_points_charge EQ carttotal>
+			<cfset alert_msg = alert_msg & "<li>If you are applying your #credit_desc# to the entire order, please return to the cart and select the &quot;Use Your Points&quot; option.</li>">
+		<cfelseif awards_points_charge LTE 0>
+			<cfset alert_msg = alert_msg & "<li>#awards_points_charge*points_multiplier# is not a valid number of #credit_desc#.</li>">
+		<cfelseif awards_points_charge GT user_total>
+			<cfset alert_msg = alert_msg & "<li>You assigned #awards_points_charge*points_multiplier# #credit_desc#, but you only have #user_total*points_multiplier#.</li>">
+		</cfif>
+	</cfif>
 	<cfif alert_msg NEQ "">
 		<br><br>
 		<span class="page_instructions">The following errors were found:<br></span>
@@ -1818,9 +1839,6 @@
 						</tr>
 		</cfif>
 		<!--- only if there is a balance due --->
-		<!--- only if there is a balance due --->
-		<!--- only if there is a balance due --->
-		
 		<cfif (user_total - carttotal LT 0 AND accepts_cc GTE 1 AND is_one_item EQ 0) OR charge_shipping>
 			<cfif uses_cost_center GT 0>
 				<cfset cost_center_charge = balance_due>
@@ -1832,13 +1850,13 @@
 				</tr>
 				<tr>
 					<td align="right"><b><span id="label_cost_center_number">Enter Cost Center ID</span></b>&nbsp;</td>
-					<td><input type="text" size="7" maxlength="5" name="cost_center_number" id="cost_center_number"></td>
+					<td>
+						<input type="text" size="7" maxlength="5" name="cost_center_number" id="cost_center_number">
+						<input type="hidden" name="cost_center_charge" id="cost_center_charge" value="#cost_center_charge#">
+						<input type="hidden" name="awards_points_charge" id="awards_points_charge" value="#awards_points_charge#">
+
+					</td>
 				</tr>
-				<input type="hidden" name="cost_center_charge" id="cost_center_charge" value="#cost_center_charge#">				
-				<!---<tr>
-					<td align="right"><b><span id="label_cost_center_charge">Charge to Cost Center</span></b>&nbsp;</td>
-					<td>$<input type="text" size="7" maxlength="8" name="cost_center_charge" id="cost_center_charge" value="#cost_center_charge#"></td>
-				</tr>--->
 			</cfif>
 			<cfif uses_cost_center EQ 0>
 				<tr>
@@ -1852,10 +1870,6 @@
 			</cfif>
 			<cfif uses_cost_center GT 0>
 				<input type="hidden" name="credit_card_charge" id="credit_card_charge" value="#credit_card_charge#">
-				<!---<tr>
-					<td align="right"><b><span id="label_credit_card_charge">Charge to Credit Card</span></b>&nbsp;</td>
-					<td>$<input type="text" size="7" maxlength="8" name="credit_card_charge" id="credit_card_charge" value="#credit_card_charge#"></td>
-				</tr>--->
 			</cfif>
 			<cfif uses_cost_center EQ 0>
 				<tr>
@@ -1867,14 +1881,19 @@
 				
 				<tr>
 				<td align="right"><b><span id="label_cid_number">CID</span></b>&nbsp;</td>
-				<td><input type="text" size="5" maxlength="5" name="cid_number" id="cid_number"> <!--- input type="hidden" name="cid_number_required" value="Please enter a CID number." ---> <a href="checkout_CID.cfm" target="_blank">What is the CID?</a>
+				<td>
+					<input type="text" size="5" maxlength="5" name="cid_number" id="cid_number">
+					<a href="checkout_CID.cfm" target="_blank">What is the CID?</a>
 				</td>
 				</tr>
 				
 				<tr>
-				<td class="active_cell" colspan="2">Billing Information&nbsp;&nbsp;&nbsp;&nbsp;<input type="checkbox" name="billingsame" onClick="CopyAddress()"> <span style="font-weight:normal">Same as shipping information.</span></td>
+				<td class="active_cell" colspan="2">
+					Billing Information&nbsp;&nbsp;&nbsp;&nbsp;
+					<input type="checkbox" name="billingsame" onClick="CopyAddress()">
+					<span style="font-weight:normal">Same as shipping information.</span>
+				</td>
 				</tr>
-				
 				<tr>
 				<td align="right">Company&nbsp;</td>
 				<td><input type="text" size="60" maxlength="30" name="snap_bill_company" value="#bill_company#"></td>
@@ -1954,7 +1973,6 @@
 		</tr>
 		
 		</table>
-	
 	
 	</form>
 	</cfif>

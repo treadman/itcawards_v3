@@ -90,7 +90,7 @@ function openHelp() {
 
 </head>
 
-<body leftmargin="0" topmargin="0" marginheight="0" marginwidth="0" <cfoutput><cfif CurrentPage EQ "welcome.cfm">#welcome_bg#<cfelse>#main_bg#</cfif></cfoutput> <cfif has_divisions AND CurrentPage EQ "cart.cfm">onload="check_assign();"</cfif>>
+<body leftmargin="0" topmargin="0" marginheight="0" marginwidth="0" <cfoutput><cfif CurrentPage EQ "welcome.cfm">#welcome_bg#<cfelse>#main_bg#</cfif></cfoutput> <cfif has_divisions AND assign_div_points AND CurrentPage EQ "cart.cfm">onload="check_assign();"</cfif>>
 <cfelse>
 	<body>
 </cfif>

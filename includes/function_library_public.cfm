@@ -141,9 +141,9 @@
 			FROM #application.database#.order_info
 			WHERE created_user_ID = <cfqueryparam cfsqltype="cf_sql_integer" value="#ProgramUserInfo_userID#">
 			AND ( is_valid = 1
-			<cfif GetProgramInfo.has_address_verification>
-				OR approval = 1
-			</cfif>
+			<!--- <cfif GetProgramInfo.has_address_verification> --->
+				OR approval IN (1,2)
+			<!--- </cfif> --->
 			)
 		</cfquery>
 		<!--- find defered points --->

@@ -16,7 +16,7 @@
 <cfparam name="set" default="0">
 <cfparam name="OnPage" default="">
 <cfparam name="checkout_type" default="">
-
+<cfparam name="awards_points_charge" default="">
 
 <cfif IsDefined('cookie.itc_user') AND cookie.itc_user IS NOT "">
 	<!--- authenticate itc_user cookie --->
@@ -173,7 +173,11 @@
 	<cfif checkout_type NEQ "">
 		<cfset ct = "&checkout_type=#checkout_type#">
 	</cfif>
-	<cflocation addtoken="no" url="checkout.cfm?div=#request.division_ID##ct#">
+	<cfset ap = "">
+	<cfif awards_points_charge NEQ "">
+		<cfset ap = "&awards_points_charge=#awards_points_charge#">
+	</cfif>
+	<cflocation addtoken="no" url="checkout.cfm?div=#request.division_ID##ct##ap#">
 </cfif>
 
 <!--- ***************************** --->
@@ -406,11 +410,16 @@
 				FROM #application.database#.program_user
 				WHERE ID = <cfqueryparam cfsqltype="cf_sql_integer" value="#user_ID#" maxlength="10">
 			</cfquery>
-			<cfif GetUserInfo.uses_cost_center EQ 2>
+			<cfif GetUserInfo.uses_cost_center GTE 2>
 				<input type="hidden" name="checkout_type" value="">
 				<input type="hidden" name="checkout" value="">
 				<input type="button" name="cc_button" value="         Charge to Cost Center         " onclick="document.cart_form.checkout.value='1'; document.cart_form.checkout_type.value='costcenter'; document.cart_form.submit();"><br /><br />
 				<input type="button" name="pt_button" value="Use Your Points and/or Credit Card" onclick="document.cart_form.checkout.value='1'; document.cart_form.checkout_type.value='points'; document.cart_form.submit();">
+				<cfif GetUserInfo.uses_cost_center EQ 3>
+					<br /><br />
+					Use <input type="text" name="awards_points_charge" size="10"> #credit_desc# and 
+					<input type="button" name="cm_button" value="Charge Remainder to Cost Center" onclick="document.cart_form.checkout.value='1'; document.cart_form.checkout_type.value='combination'; document.cart_form.submit();">
+				</cfif>
 			<cfelse>
 				<input type="submit" name="checkout" id="checkout" value="#Translate(language_ID,'checkout_text')#">
 			</cfif>

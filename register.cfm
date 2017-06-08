@@ -190,7 +190,7 @@
 					<!--- Mark user as uses_cost_center = 2 --->
 					<cfquery name="UpdateUser" datasource="#application.DS#">
 						UPDATE #application.database#.program_user
-						SET uses_cost_center = 2
+						SET uses_cost_center = 3
 						WHERE ID = #programUserID#
 					</cfquery>
 				</cfif>

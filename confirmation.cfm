@@ -24,9 +24,10 @@
 
 <!--- get order info --->
 <cfquery name="FindOrderInfo" datasource="#application.DS#">
-	SELECT snap_fname, snap_lname, snap_ship_company, snap_ship_fname, snap_ship_lname, snap_ship_address1, snap_ship_address2, snap_ship_city, snap_ship_state, snap_ship_zip,
-		snap_phone, snap_email, snap_bill_company, snap_bill_fname, snap_bill_lname, snap_bill_address1, snap_bill_address2, snap_bill_city, snap_bill_state, snap_bill_zip,
-		order_note,	shipping_desc, shipping_charge, snap_signature_charge, credit_card_charge, cost_center_charge
+	SELECT snap_fname, snap_lname, snap_ship_company, snap_ship_fname, snap_ship_lname, snap_ship_address1, snap_ship_address2, snap_ship_city,
+			snap_ship_state, snap_ship_zip, snap_phone, snap_email, snap_bill_company, snap_bill_fname, snap_bill_lname, snap_bill_address1,
+			snap_bill_address2, snap_bill_city, snap_bill_state, snap_bill_zip, order_note,	shipping_desc, shipping_charge,
+			snap_signature_charge, credit_card_charge, cost_center_charge, points_used
 	FROM #application.database#.order_info
 	WHERE ID = <cfqueryparam cfsqltype="cf_sql_integer" value="#order_ID#" maxlength="10">
 </cfquery>
@@ -56,6 +57,7 @@
 <cfset snap_signature_charge = FindOrderInfo.snap_signature_charge>
 <cfset cost_center_charge = FindOrderInfo.cost_center_charge>
 <cfset credit_card_charge = FindOrderInfo.credit_card_charge>
+<cfset points_used = FindOrderInfo.points_used>
 
 <!--- find order items --->
 <cfquery name="FindOrderItems" datasource="#application.DS#">
@@ -106,38 +108,60 @@
 	</cfloop>
 	<cfif is_one_item EQ 0>
 		<cfif NOT hide_points>
-		<tr>
-			<td align="right" colspan="3"><strong>#Translate(language_ID,'order_total')#:</strong> </td>
-			<td align="right"><strong>#NumberFormat(this_carttotal * credit_multiplier,Application.NumFormat)#</strong></td>
-		</tr>
-		<cfif cost_center_charge EQ 0>
-		<tr>
-			<td align="right" colspan="100%">&nbsp;</td>
-		</tr>
-		<tr>
-			<td align="right" colspan="3"><strong>#Translate(language_ID,'total_text')# #credit_desc#: </strong></td>
-			<td align="right"><strong>#NumberFormat(user_total * points_multiplier,Application.NumFormat)#</strong></td>
-		</tr>
-		<tr>
-			<td align="right" colspan="3"><strong>#Translate(language_ID,'less_this_order')#:</strong> </td>
-			<td align="right"><strong>#NumberFormat(this_carttotal * credit_multiplier,Application.NumFormat)#</strong></td>
-		</tr>
-		<tr>
-			<td align="right" colspan="3"><strong>#Translate(language_ID,'remaining_text')# #credit_desc#:</strong> </td>
-			<td align="right"><strong>#NumberFormat(Max((user_total * points_multiplier) - (this_carttotal * credit_multiplier),0),Application.NumFormat)#</strong></td>
-		</tr>
-	</cfif>
+			<tr>
+				<td align="right" colspan="3"><strong>#Translate(language_ID,'order_total')#:</strong> </td>
+				<td align="right"><strong>#NumberFormat(this_carttotal * credit_multiplier,Application.NumFormat)#</strong></td>
+			</tr>
+			<cfif cost_center_charge EQ 0>
+				<tr>
+					<td align="right" colspan="100%">&nbsp;</td>
+				</tr>
+				<tr>
+					<td align="right" colspan="3"><strong>#Translate(language_ID,'total_text')# #credit_desc#: </strong></td>
+					<td align="right"><strong>#NumberFormat(user_total * points_multiplier,Application.NumFormat)#</strong></td>
+				</tr>
+				<tr>
+					<td align="right" colspan="3"><strong>#Translate(language_ID,'less_this_order')#:</strong> </td>
+					<td align="right"><strong>#NumberFormat(this_carttotal * credit_multiplier,Application.NumFormat)#</strong></td>
+				</tr>
+				<tr>
+					<td align="right" colspan="3"><strong>#Translate(language_ID,'remaining_text')# #credit_desc#:</strong> </td>
+					<td align="right"><strong>#NumberFormat(Max((user_total * points_multiplier) - (this_carttotal * credit_multiplier),0),Application.NumFormat)#</strong></td>
+				</tr>
+			<cfelseif points_used GT 0>
+				<tr>
+					<td align="right" colspan="3">Less #credit_desc# used:</td>
+					<td align="right">#points_used#</td>
+				</tr>
+				<tr>
+					<td align="right" colspan="3">Cost Center Total:</td>
+					<td align="right">#cost_center_charge-shipping_charge-snap_signature_charge#</td>
+				</tr>
+			</cfif>
+		</cfif>
+
+		<cfif shipping_desc NEQ "">
+			<tr>
+				<td align="right" colspan="3">Ship via #shipping_desc#:</td>
+				<td align="right">#shipping_charge#</td>
+			</tr>
+		</cfif>
+		<cfif snap_signature_charge GT 0>
+			<tr>
+				<td align="right" colspan="3"><cfif cost_center_charge EQ 0>Signature Required<cfelse>Box</cfif> Charge:</td>
+				<td align="right">#snap_signature_charge#</td>
+			</tr>
 		</cfif>
 		<cfif cost_center_charge GT 0>
 			<tr>
 				<td align="right" colspan="3"><span class="alert">Amount Charged to Cost Center:</span> </td>
-				<td class="alert">$ #NumberFormat(cost_center_charge,"___.__")#</td>
+				<td align="right" class="alert">$ #NumberFormat(cost_center_charge,"___.__")#</td>
 			</tr>
 		</cfif>
 		<cfif credit_card_charge GT 0>
 			<tr>
 				<td align="right" colspan="3"><span class="alert">Amount Charged to Credit Card:</span> </td>
-				<td class="alert">$ #NumberFormat(credit_card_charge,"___.__")#</td>
+				<td align="right" class="alert">$ #NumberFormat(credit_card_charge,"___.__")#</td>
 			</tr>
 		</cfif>
 
@@ -148,48 +172,32 @@
 	
 <table cellpadding="3" cellspacing="1" border="0">
 	<cfif get_shipping_address>
-	<tr>
-		<td><b>Shipping Information</b></td>
-		<td><cfif snap_bill_fname NEQ ""><b>Billing Information</b><cfelse>&nbsp;</cfif></td>
-	</tr>
-	<tr>
-		<td>
-			<cfif snap_ship_company NEQ "">#snap_ship_company#</cfif><br>
-			<cfif snap_ship_fname NEQ "">#snap_ship_fname#</cfif> <cfif snap_ship_lname NEQ "">#snap_ship_lname#</cfif><br>
-			<cfif snap_ship_address1 NEQ "">#snap_ship_address1#<br></cfif>
-			<cfif snap_ship_address2 NEQ "">#snap_ship_address2#<br></cfif>
-			<cfif snap_ship_city NEQ "">#snap_ship_city#</cfif>, <cfif snap_ship_state NEQ "">#snap_ship_state#</cfif> <cfif snap_ship_zip NEQ "">#snap_ship_zip#</cfif><br>
-			<cfif snap_phone NEQ "">Phone: #snap_phone#</cfif>
-		</td>
-		<td>
-			<cfif snap_bill_fname NEQ "">
-			<cfif snap_bill_company NEQ "">#snap_bill_company#</cfif><br>
-			<cfif snap_bill_fname NEQ "">#snap_bill_fname#</cfif> <cfif snap_bill_lname NEQ "">#snap_bill_lname#</cfif><br>
-			<cfif snap_bill_address1 NEQ "">#snap_bill_address1#<br></cfif>
-			<cfif snap_bill_address2 NEQ "">#snap_bill_address2#<br></cfif>
-			<cfif snap_bill_city NEQ "">#snap_bill_city#</cfif>, <cfif snap_bill_state NEQ "">#snap_bill_state#</cfif> <cfif snap_bill_zip NEQ "">#snap_bill_zip#</cfif><br>
-			<cfelse>&nbsp;</cfif>
-		</td>
-	</tr>
-	<tr>
-		<td colspan="2">&nbsp;</td>
-	</tr>
-	<cfif shipping_desc NEQ "">
 		<tr>
-			<td colspan="2">Ship via #shipping_desc#: #shipping_charge#</td>
+			<td><b>Shipping Information</b></td>
+			<td><cfif snap_bill_fname NEQ ""><b>Billing Information</b><cfelse>&nbsp;</cfif></td>
+		</tr>
+		<tr>
+			<td>
+				<cfif snap_ship_company NEQ "">#snap_ship_company#</cfif><br>
+				<cfif snap_ship_fname NEQ "">#snap_ship_fname#</cfif> <cfif snap_ship_lname NEQ "">#snap_ship_lname#</cfif><br>
+				<cfif snap_ship_address1 NEQ "">#snap_ship_address1#<br></cfif>
+				<cfif snap_ship_address2 NEQ "">#snap_ship_address2#<br></cfif>
+				<cfif snap_ship_city NEQ "">#snap_ship_city#</cfif>, <cfif snap_ship_state NEQ "">#snap_ship_state#</cfif> <cfif snap_ship_zip NEQ "">#snap_ship_zip#</cfif><br>
+				<cfif snap_phone NEQ "">Phone: #snap_phone#</cfif>
+			</td>
+			<td>
+				<cfif snap_bill_fname NEQ "">
+				<cfif snap_bill_company NEQ "">#snap_bill_company#</cfif><br>
+				<cfif snap_bill_fname NEQ "">#snap_bill_fname#</cfif> <cfif snap_bill_lname NEQ "">#snap_bill_lname#</cfif><br>
+				<cfif snap_bill_address1 NEQ "">#snap_bill_address1#<br></cfif>
+				<cfif snap_bill_address2 NEQ "">#snap_bill_address2#<br></cfif>
+				<cfif snap_bill_city NEQ "">#snap_bill_city#</cfif>, <cfif snap_bill_state NEQ "">#snap_bill_state#</cfif> <cfif snap_bill_zip NEQ "">#snap_bill_zip#</cfif><br>
+				<cfelse>&nbsp;</cfif>
+			</td>
 		</tr>
 		<tr>
 			<td colspan="2">&nbsp;</td>
 		</tr>
-	</cfif>
-	<cfif snap_signature_charge GT 0>
-		<tr>
-			<td colspan="2"><cfif cost_center_charge EQ 0>Signature Required<cfelse>Box</cfif> Charge: #snap_signature_charge#</td>
-		</tr>
-		<tr>
-			<td colspan="2">&nbsp;</td>
-		</tr>
-	</cfif>
 	</cfif>
 	<tr>
 		<td colspan="2"><strong>#Translate(language_ID,'special_instructions')#</strong></td>
