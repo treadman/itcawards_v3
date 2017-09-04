@@ -2,20 +2,17 @@
 "http://www.w3.org/TR/html4/loose.dtd">
 <html>
 <head>
-<link rel="shortcut icon" href="/favicon.ico" />
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
-<title>ITC Awards</title>
-
-<STYLE TYPE="text/css">
-td, body, .reg, button, input, select, option, textarea {font-family:Verdana, Arial, Helvetica, san-serif; font-size:8pt; color:black}
-.action {border-width:2px;border-color:#ff6600;background-color:#ff6600;color:#ffffff;font-weight:bold;padding:3px;cursor:pointer}
-.alert {color:#cb0400}
-.login_msg {font-weight:bold;color:#969696}
-.login_msg a {font-weight:bold;color:#969696}
-.welcome {font-family:Arial, Verdana;font-weight:bold;font-size:8pt;color:#969696}
-
-</STYLE>
-
+	<link rel="shortcut icon" href="/favicon.ico" />
+	<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+	<title>ITC Awards</title>
+	<STYLE TYPE="text/css">
+	td, body, .reg, button, input, select, option, textarea {font-family:Verdana, Arial, Helvetica, san-serif; font-size:8pt; color:black}
+	.action {border-width:2px;border-color:#ff6600;background-color:#ff6600;color:#ffffff;font-weight:bold;padding:3px;cursor:pointer}
+	.alert {color:#cb0400}
+	.login_msg {font-weight:bold;color:#969696}
+	.login_msg a {font-weight:bold;color:#969696}
+	.welcome {font-family:Arial, Verdana;font-weight:bold;font-size:8pt;color:#969696}
+	</STYLE>
 </head>
 
 <body leftmargin="0" topmargin="0" marginheight="0" marginwidth="0" background="pics/login/bkgd-fade.jpg">
