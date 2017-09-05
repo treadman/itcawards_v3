@@ -27,6 +27,16 @@ function openCertificate() {
 	<cfoutput query="GetDivisions">
 		<span class="active_button welcome_button" onmouseover="mOver(this,'selected_button welcome_button');" onmouseout="mOut(this,'active_button welcome_button');" onclick="window.location='welcome.cfm?div=#GetDivisions.ID#'">#GetDivisions.welcome_button#</span>
 	</cfoutput>
+	<cfif linked_program_ID GT 0>
+		<cfquery name="GetLinkedProgram" datasource="#application.DS#">
+			SELECT program_name
+			FROM #application.database#.program
+			WHERE ID = <cfqueryparam cfsqltype="cf_sql_integer" value="#linked_program_ID#" maxlength="10">
+		</cfquery>
+		<cfif GetLinkedProgram.recordcount EQ 1>
+			<span class="active_button welcome_button" onmouseover="mOver(this,'selected_button welcome_button');" onmouseout="mOut(this,'active_button welcome_button');" onclick="window.location='linked_login.cfm'"><cfoutput>#GetLinkedProgram.program_name#</cfoutput></span>
+		</cfif>
+	</cfif>
 	</div>
 </cfif>
 

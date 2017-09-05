@@ -209,7 +209,8 @@
 						 	WHEN charge_shipping <= CURDATE() THEN 1
 							ELSE 0
 						END AS charge_shipping,
-						add_shipping, signature_charge, has_address_verification, require_email_address, show_divisions
+						add_shipping, signature_charge, has_address_verification, require_email_address, show_divisions,
+						linked_program_ID, <!---user_base_program_ID,---> secondary_auth_field
 				FROM #application.database#.program
 				WHERE ID = <cfqueryparam cfsqltype="cf_sql_integer" value="#program_ID#" maxlength="10">
 			</cfquery>
@@ -318,6 +319,9 @@
 			<cfset show_divisions = SelectProgramInfo.show_divisions>
 			<cfset has_promotion_button = SelectProgramInfo.has_promotion_button>
 			<cfset assign_div_points = SelectProgramInfo.assign_div_points>
+			<cfset linked_program_ID = SelectProgramInfo.linked_program_ID>
+			<!--- <cfset user_base_program_ID = SelectProgramInfo.user_base_program_ID> --->
+			<cfset secondary_auth_field = SelectProgramInfo.secondary_auth_field>
 
 			<!--- massage the data --->
 			<!--- <cfif welcome_bg NEQ "">
