@@ -1542,7 +1542,7 @@
 				<cfif cost_center_box_charge gt 0 AND ListFind("costcenter,combination",checkout_type)>
 					<cfset balance_due = balance_due + cost_center_box_charge>
 				</cfif>
-				<cfif checkout_type EQ "points" AND user_total - carttotal LT 0 AND accepts_cc GTE 1>
+				<cfif (checkout_type EQ "points" OR checkout_type EQ "") AND user_total - carttotal LT 0 AND accepts_cc GTE 1>
 					<cfset balance_due = balance_due + (carttotal - user_total)>
 				</cfif>
 				<cfif checkout_type EQ "combination">
