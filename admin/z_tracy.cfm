@@ -1,6 +1,128 @@
-<cfabort showerror="Please do not run this file.">
+<!--- <cfabort showerror="Please do not run this file."> --->
 <cfsetting requesttimeout="300" >
 <cfinclude template="../includes/function_library_local.cfm">
+
+<!--- --->
+<!--- Compare spreadsheet for ITG users --->
+<!--- --->
+<cfif NOT isNumeric(request.selected_program_ID) OR request.selected_program_ID EQ 0>
+	select program<cfabort>
+</cfif>
+
+<cfspreadsheet action="read" src="upload/ITG Employees.xlsx" query="GetFile1" rows="2-2584">
+
+<!--- In Spreadsheet, but not in System:<br>
+<cfloop query="GetFile1">
+	<cfset user = LCase(GetFile1.col_1)>
+	<cfset name = LCase(GetFile1.col_2)>
+	<cfset email = LCase(GetFile1.col_10)>
+	<cfquery name="GetUsers" datasource="#application.DS#">
+		SELECT ID, badge_id, username, lname, fname, email
+		FROM #application.database#.program_user
+		WHERE program_ID = #request.selected_program_ID#
+		AND is_active = 1
+		AND ( 1=0
+			<cfif trim(user) NEQ ''> OR username = '#user#' </cfif>
+			<cfif trim(user) NEQ ''> OR badge_id = '#user#' </cfif>
+			<cfif trim(email) NEQ ''> OR email = '#email#' </cfif>
+		)
+	</cfquery>
+	<cfif GetUsers.recordcount EQ 0>
+		<cfoutput>
+		#user# - #name# - #email#<cfif trim(email) EQ ''>[no email address]</cfif><br>
+		</cfoutput>
+	</cfif>
+</cfloop>
+<br><br> --->
+
+<!--- In Spreadsheet, and found multiple users in System:<br>
+<cfloop query="GetFile1">
+	<cfset user = LCase(GetFile1.col_1)>
+	<cfset name = LCase(GetFile1.col_2)>
+	<cfset email = LCase(GetFile1.col_10)>
+	<cfquery name="GetUsers" datasource="#application.DS#">
+		SELECT ID, badge_id, username, lname, fname, email
+		FROM #application.database#.program_user
+		WHERE program_ID = #request.selected_program_ID#
+		AND is_active = 1
+		AND ( 1=0
+			<cfif trim(user) NEQ ''> OR username = '#user#' </cfif>
+			<cfif trim(user) NEQ ''> OR badge_id = '#user#' </cfif>
+			<cfif trim(email) NEQ ''> OR email = '#email#' </cfif>
+		)
+	</cfquery>
+	<cfif GetUsers.recordcount GT 1>
+		<cfoutput>
+		#user# - #name# - #email#<cfif trim(email) EQ ''>[no email address]</cfif><br>
+		<cfloop query="GetUsers">
+			#GetUsers.ID# - #GetUsers.username# - #GetUsers.badge_id# - #GetUsers.lname#, #GetUsers.fname# - #GetUsers.email#<br>
+		</cfloop>
+		<br>
+		</cfoutput>
+	</cfif>
+</cfloop>
+<br><br> --->
+
+
+<!--- In System, but not in Spreadsheet:<br>
+
+<cfquery name="GetUsers" datasource="#application.DS#">
+	SELECT badge_id, username, lname, fname, email
+	FROM #application.database#.program_user
+	WHERE program_ID = #request.selected_program_ID#
+	AND is_active = 1
+</cfquery>
+
+<cfloop query="GetUsers">
+	<cfset user = LCase(GetUsers.username)>
+	<cfset badge = LCase(GetUsers.badge_id)>
+	<cfset email = LCase(GetUsers.email)>
+	<cfquery name="File1" dbtype="query">
+		SELECT * FROM GetFile1
+		WHERE LOWER(col_10) = '#email#'
+		OR LOWER(col_1) = '#user#'
+		OR LOWER(col_1) = '#badge#'
+	</cfquery>
+	<cfif File1.recordcount EQ 0>
+		<cfoutput>
+		#user# - #badge# - #lname#, #fname# - #email#<br>
+		</cfoutput>
+	</cfif>
+</cfloop>
+<br><br> --->
+
+In System, and multiples found in Spreadsheet:<br>
+<cfquery name="GetUsers" datasource="#application.DS#">
+	SELECT badge_id, username, lname, fname, email
+	FROM #application.database#.program_user
+	WHERE program_ID = #request.selected_program_ID#
+	AND is_active = 1
+</cfquery>
+
+<cfloop query="GetUsers">
+	<cfset user = LCase(GetUsers.username)>
+	<cfset badge = LCase(GetUsers.badge_id)>
+	<cfset email = LCase(GetUsers.email)>
+	<cfquery name="File1" dbtype="query">
+		SELECT * FROM GetFile1
+		WHERE 1=0
+			<cfif trim(email) NEQ ''> OR LOWER(col_10) = '#email#'</cfif>
+			<cfif trim(user) NEQ ''> OR LOWER(col_1) = '#user#' </cfif>
+			<cfif trim(badge) NEQ ''>OR LOWER(col_1) = '#badge#' </cfif>
+	</cfquery>
+	<cfif File1.recordcount GT 1>
+		<cfoutput>
+		#user# - #badge# - #GetUsers.lname#, #GetUsers.fname# - #email#<br>
+		<cfloop query="File1">
+			#File1.col_1# - #File1.col_2# - #File1.col_10#<br>
+		</cfloop>
+		<br>
+		</cfoutput>
+	</cfif>
+
+</cfloop>
+<br><br>
+
 
 
 <!--- --->
