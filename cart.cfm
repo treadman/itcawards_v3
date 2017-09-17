@@ -201,6 +201,29 @@
 						AND order_ID = <cfqueryparam cfsqltype="cf_sql_integer" value="#order_ID#" maxlength="10">
 				</cfquery>
 			</cfif>
+			<!--- ********************************* --->
+			<!--- Clear items not in product list           (ITG Linked Login) --->
+			<!--- ********************************* --->
+			<cfquery name="FindInvalids" datasource="#application.DS#">
+				SELECT I.ID
+				FROM #application.database#.inventory I
+				LEFT JOIN #application.database#.product X ON X.ID = I.product_ID
+				LEFT JOIN #application.database#.product_meta P ON P.ID = X.product_meta_ID
+				WHERE I.order_ID = <cfqueryparam cfsqltype="cf_sql_integer" value="#order_ID#" maxlength="10">
+				AND P.product_set_ID NOT IN (#product_set_IDs#)
+			</cfquery>
+			<cfif FindInvalids.RecordCount GT 0>
+				<cfloop query="FindInvalids">
+					<cfquery name="RemoveInvItem" datasource="#application.DS#">
+						DELETE FROM #application.database#.inventory
+						WHERE ID IN (#valueList(FindInvalids.ID)#)
+						AND order_ID = <cfqueryparam cfsqltype="cf_sql_integer" value="#order_ID#" maxlength="10">
+					</cfquery>
+				</cfloop>
+			</cfif>
+			<!--- ********************************* --->
+			<!--- Get all cart items  ************ --->
+			<!--- ********************************* --->
 			<cfquery name="FindOrderItems" datasource="#application.DS#">
 				SELECT I.ID AS inventory_ID, I.snap_meta_name, I.snap_description, I.snap_productvalue, I.quantity, I.snap_options,
 					P.thumbnailname, P.product_set_ID
