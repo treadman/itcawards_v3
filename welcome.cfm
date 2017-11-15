@@ -6,6 +6,16 @@
 
 <cfparam name="DisplayMode" default="Welcome">
 
+<cfset linked_parent_id = "">
+<cfquery name="GetLinkedParent" datasource="#application.DS#">
+	SELECT ID
+	FROM #application.database#.program
+	WHERE linked_program_ID = <cfqueryparam cfsqltype="cf_sql_integer" value="#program_ID#" maxlength="10">
+</cfquery>
+<cfif GetLinkedParent.recordcount EQ 1>
+	<cfset linked_parent_id = GetLinkedParent.ID>
+</cfif>
+
 <cfinclude template="includes/header.cfm">
 
 <script language="javascript">
@@ -34,7 +44,7 @@ function openCertificate() {
 			WHERE ID = <cfqueryparam cfsqltype="cf_sql_integer" value="#linked_program_ID#" maxlength="10">
 		</cfquery>
 		<cfif GetLinkedProgram.recordcount EQ 1>
-			<span class="active_button welcome_button" onmouseover="mOver(this,'selected_button welcome_button');" onmouseout="mOut(this,'active_button welcome_button');" onclick="window.location='linked_login.cfm'"><cfoutput>#GetLinkedProgram.program_name#</cfoutput></span>
+			<span class="active_button welcome_button" onmouseover="mOver(this,'selected_button welcome_button');" onmouseout="mOut(this,'active_button welcome_button');" onclick="window.location='linked_login.cfm?log=in'"><cfoutput>#GetLinkedProgram.program_name#</cfoutput></span>
 		</cfif>
 	</cfif>
 	</div>

@@ -1,5 +1,5 @@
 <!--- <cfabort showerror="Please do not run this file."> --->
-<cfsetting requesttimeout="300" >
+<cfsetting requesttimeout="600" >
 <cfinclude template="../includes/function_library_local.cfm">
 
 <!--- --->
@@ -11,7 +11,8 @@
 
 <cfspreadsheet action="read" src="upload/ITG Employees.xlsx" query="GetFile1" rows="2-2584">
 
-<!--- In Spreadsheet, but not in System:<br>
+<cfset counter = 1>
+In Spreadsheet, but not in System:<br>
 <cfloop query="GetFile1">
 	<cfset user = LCase(GetFile1.col_1)>
 	<cfset name = LCase(GetFile1.col_2)>
@@ -20,7 +21,6 @@
 		SELECT ID, badge_id, username, lname, fname, email
 		FROM #application.database#.program_user
 		WHERE program_ID = #request.selected_program_ID#
-		AND is_active = 1
 		AND ( 1=0
 			<cfif trim(user) NEQ ''> OR username = '#user#' </cfif>
 			<cfif trim(user) NEQ ''> OR badge_id = '#user#' </cfif>
@@ -29,11 +29,21 @@
 	</cfquery>
 	<cfif GetUsers.recordcount EQ 0>
 		<cfoutput>
-		#user# - #name# - #email#<cfif trim(email) EQ ''>[no email address]</cfif><br>
+		#counter#) #user# - #name# - #email#<cfif trim(email) EQ ''>[no email address]</cfif><br>
 		</cfoutput>
+		<cfset counter = counter + 1>
+
+		<cfset lastname = trim(listFirst(GetFile1.col_2))>
+		<cfset firstname = ListFirst(trim(listLast(GetFile1.col_2))," ")>
+		<cfquery name="AddUser" datasource="#application.DS#">
+			INSERT INTO #application.database#.program_user
+				(created_user_ID, created_datetime, program_ID, username, fname, lname, email, is_active)
+			VALUES
+				(1212121212, '2017-11-08 22:00:00',1000000100, '#user#', '#firstname#', '#lastname#', '#email#', 1)
+		</cfquery>
 	</cfif>
 </cfloop>
-<br><br> --->
+<br><br>
 
 <!--- In Spreadsheet, and found multiple users in System:<br>
 <cfloop query="GetFile1">
@@ -91,7 +101,7 @@
 </cfloop>
 <br><br> --->
 
-In System, and multiples found in Spreadsheet:<br>
+<!--- In System, and multiples found in Spreadsheet:<br>
 <cfquery name="GetUsers" datasource="#application.DS#">
 	SELECT badge_id, username, lname, fname, email
 	FROM #application.database#.program_user
@@ -121,7 +131,7 @@ In System, and multiples found in Spreadsheet:<br>
 	</cfif>
 
 </cfloop>
-<br><br>
+<br><br> --->
 
 
 

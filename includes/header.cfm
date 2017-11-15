@@ -9,6 +9,8 @@
 
 <cfparam name="has_wrapper" default="true">
 
+<cfparam name="linked_parent_id" default="">
+
 <cfif request.division_ID GT 0>
 	<cfquery name="GetDivisionInfo" datasource="#application.DS#">
 		SELECT parent_ID, welcome_instructions, welcome_button, welcome_bg, welcome_message, welcome_admin_button,
@@ -254,6 +256,13 @@ function openHelp() {
 						</cfif>
 						<cfif welcome_button NEQ "">
 							<tr><td align="center" class="active_button" onmouseover="mOver(this,'selected_button');" onmouseout="mOut(this,'active_button');" onclick="window.location='main.cfm?div=#request.division_id#'">#welcome_button#</td></tr>
+						</cfif>
+						<cfif linked_parent_id NEQ "">
+							<tr><td>&nbsp;</td></tr>
+							<tr>
+								<td align="center" class="active_button" onmouseover="mOver(this,'selected_button');" onmouseout="mOut(this,'active_button');" onclick="window.location='linked_login.cfm?log=out&linked_parent_id=#linked_parent_id#'">Employee Recognition Programs
+								</td>
+							</tr>
 						</cfif>
 						<cfif additional_content_button NEQ "">
 							<tr><td>&nbsp;</td></tr>
