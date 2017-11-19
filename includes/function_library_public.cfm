@@ -210,7 +210,7 @@
 							ELSE 0
 						END AS charge_shipping,
 						add_shipping, signature_charge, has_address_verification, require_email_address, show_divisions,
-						linked_program_ID, <!---user_base_program_ID,---> secondary_auth_field
+						linked_program_ID, <!---user_base_program_ID,---> secondary_auth_field, login_required
 				FROM #application.database#.program
 				WHERE ID = <cfqueryparam cfsqltype="cf_sql_integer" value="#program_ID#" maxlength="10">
 			</cfquery>
@@ -322,6 +322,7 @@
 			<cfset linked_program_ID = SelectProgramInfo.linked_program_ID>
 			<!--- <cfset user_base_program_ID = SelectProgramInfo.user_base_program_ID> --->
 			<cfset secondary_auth_field = SelectProgramInfo.secondary_auth_field>
+			<cfset login_required = SelectProgramInfo.login_required>
 
 			<!--- massage the data --->
 			<!--- <cfif welcome_bg NEQ "">

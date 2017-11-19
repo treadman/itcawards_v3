@@ -534,7 +534,7 @@
 			<cfif use_master_categories NEQ 0 AND use_master_categories NEQ 3 AND is_one_item EQ 0>
 				<tr>
 				<td valign="bottom" class="product_value">
-					#productvalue*points_multiplier# #credit_desc#
+					<cfif credit_desc EQ "$">#credit_desc#</cfif>#productvalue*points_multiplier#<cfif credit_desc NEQ "$"> #credit_desc#</cfif>
 				</td>
 				</tr>
 			</cfif>

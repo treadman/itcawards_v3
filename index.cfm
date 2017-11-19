@@ -29,6 +29,23 @@
 <cfset showPWRecoverLink = false>
 <cfset showPWRecoverForm = false>
 
+<cfif this_HTTP_HOST EQ 'mcn.itcawards.com'>
+	<cfquery name="CheckMCN" datasource="#application.DS#">
+		SELECT pl.program_ID, p.company_name
+		FROM #application.database#.program_login pl
+		JOIN #application.database#.program p ON pl.program_ID = p.ID AND p.parent_ID = 0
+		WHERE 	pl.password = <cfqueryparam cfsqltype="cf_sql_varchar" value="mcn" maxlength="128"> 
+			AND pl.username = <cfqueryparam cfsqltype="cf_sql_varchar" value="mcn" maxlength="32">
+			AND p.is_active = 1 
+			AND p.expiration_date >= CURDATE()
+	</cfquery>
+	<cfset program_ID = CheckMCN.program_ID>
+
+	<cfset HashedProgramID = FLGen_CreateHash(program_ID)>
+	<cfcookie name="itc_pid" value="#program_ID#-#HashedProgramID#">
+	<cflocation url="main.cfm">
+</cfif>
+
 <cfif url.p NEQ "">
 	<!--- is the url.p valid ? --->
 	<cfquery name="CheckUsername" datasource="#application.DS#">

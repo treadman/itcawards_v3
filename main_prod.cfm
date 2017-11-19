@@ -138,9 +138,9 @@
 					<tr>
 					<td>
 						<p>
-							Price <b><cfoutput>#ThisPValue*points_multiplier# #credit_desc#</cfoutput></b>
+							Price <b><cfoutput><cfif credit_desc EQ "$">#credit_desc#</cfif>#ThisPValue*points_multiplier#<cfif credit_desc NEQ "$"> #credit_desc#</cfif></cfoutput></b>
 						<cfif isNumeric(FindProdValue.retailvalue) AND FindProdValue.retailvalue GT 0>
-							<br><br>Retail Price <b><cfoutput>#FindProdValue.retailvalue*points_multiplier# #credit_desc#</cfoutput></b>
+							<br><br>Retail Price <b><cfoutput><cfif credit_desc EQ "$">#credit_desc#</cfif>#FindProdValue.retailvalue*points_multiplier#<cfif credit_desc NEQ "$"> #credit_desc#</cfif></cfoutput></b>
 						</cfif>
 						</p><br>
 					</td>

@@ -26,31 +26,49 @@
 <!--- form was submitted --->
 <cfif IsDefined('form.username') AND form.username IS NOT "">
 	<!--- check for username/program --->
-	<cfquery name="FindProgramUser" datasource="#application.DS#">
-		SELECT ID AS user_ID, IF(is_done=1,"true","false") AS is_done, defer_allowed, cc_max, email
-		FROM #application.database#.program_user
-		WHERE username = <cfqueryparam cfsqltype="cf_sql_varchar" value="#username#" maxlength="128">
-		<cfif email_login>
-			AND email = <cfqueryparam cfsqltype="cf_sql_varchar" value="#form.email#">
+	<cfloop from="1" to="2" index="i">
+		<cfquery name="FindProgramUser" datasource="#application.DS#">
+			SELECT ID AS user_ID, IF(is_done=1,"true","false") AS is_done, defer_allowed, cc_max, email
+			FROM #application.database#.program_user
+			WHERE username = <cfqueryparam cfsqltype="cf_sql_varchar" value="#username#" maxlength="128">
+			<cfif email_login>
+				AND email = <cfqueryparam cfsqltype="cf_sql_varchar" value="#form.email#">
+			</cfif>
+				AND program_ID = <cfqueryparam cfsqltype="cf_sql_integer" value="#program_ID#" maxlength="10">
+				AND is_active = 1
+				AND (expiration_date >= CURDATE() OR expiration_date IS NULL)
+		</cfquery>
+		<cfif FindProgramUser.RecordCount EQ 1>
+			<cfset user_ID = FindProgramUser.user_ID>
+			<cfset is_done = FindProgramUser.is_done>
+			<cfset defer_allowed = FindProgramUser.defer_allowed>
+			<cfset cc_max = FindProgramUser.cc_max>
+			<cfset email = FindProgramUser.email>
+		<cfelseif not login_required>
+			<cfquery name="AddProgramUser" datasource="#application.DS#">
+				INSERT INTO #application.database#.program_user
+					(created_user_ID, created_datetime, username, program_ID, email, is_active)
+				VALUES (
+					<cfqueryparam cfsqltype="CF_SQL_INTEGER" value="#program_ID#" maxlength="10">,
+					'#FLGen_DateTimeToMySQL()#',
+					<cfqueryparam cfsqltype="cf_sql_varchar" value="#username#" maxlength="128">,
+					<cfqueryparam cfsqltype="CF_SQL_INTEGER" value="#program_ID#" maxlength="10">,
+					<cfqueryparam cfsqltype="cf_sql_varchar" value="#username#" maxlength="128">,
+					1
+				)
+			</cfquery>
 		</cfif>
-			AND program_ID = <cfqueryparam cfsqltype="cf_sql_integer" value="#program_ID#" maxlength="10">
-			AND is_active = 1
-			AND (expiration_date >= CURDATE() OR expiration_date IS NULL)
-	</cfquery>
-	<cfif FindProgramUser.RecordCount EQ 1>
-		<cfset user_ID = FindProgramUser.user_ID>
-		<cfset is_done = FindProgramUser.is_done>
-		<cfset defer_allowed = FindProgramUser.defer_allowed>
-		<cfset cc_max = FindProgramUser.cc_max>
-		<cfset email = FindProgramUser.email>
-	</cfif>
+		<cfif FindProgramUser.RecordCount EQ 1 OR login_required>
+			<cfbreak>
+		</cfif>
+	</cfloop>
 	<!--- calculate award points as long as one user was found in this program with the submitted username --->
 	<cfif FindProgramUser.RecordCount EQ 1 AND NOT is_done>
 		<!--- get user info and write program user cookie --->
 		<cfset GetProgramUserInfo(user_ID,email)>
 		<!--- user was found and is ORDERING --->
 		<cfif IsDefined('form.defer') AND form.defer IS NOT "yes">
-			<cfif user_totalpoints GT 0 OR is_one_item GT 0>
+			<cfif user_totalpoints GT 0 OR is_one_item GT 0 OR not login_required>
 				<cfif defer EQ "yes">
 					<cflocation addtoken="no" url="defer.cfm">
 				<cfelse>
@@ -117,7 +135,7 @@
 	</tr>
 	</table>
 	<br><br>
-	<input type="submit" name="submit" value="Submit">
+	<input type="submit" name="submit" value="Continue">
 </form>
 <br><br>
 
